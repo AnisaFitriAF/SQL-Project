@@ -1,0 +1,164 @@
+/*
+
+Cleansing Data in SQL
+
+*/	
+
+SELECT * FROM nashvillehousingdata;
+
+-	- Standardize date format 	
+
+SELECT SaleDateConverted, CONVERT(date, SaleDate)
+FROM nashvillehousingdata;
+
+UPDATE nashvillehousingdata
+SET SaleDate  = CONVERT(Date, SaleDate);
+
+ALTER TABLE `nashvillehousingdata`
+ADD `SaleDateConverted` date;
+
+UPDATE `nashvillehousingdata`
+SET SaleDateConverted = CONVERT(date, SaleDate)
+
+-	-  Populate property address data
+
+SELECT *
+FROM nashvillehousingdata
+ORDER BY ParcelID
+
+SELECT a.ParcelID, a.PropertyAddress, b.ParcelID, b.PropertyAddress, ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM nashvillehousingdata a
+JOIN nashvillehousingdata b
+ON a.ParcelID = b.ParcelID
+AND a.UniqueID <> b.UniqueID
+WHERE a.PropertyAddress IS NULL;
+
+UPDATE a
+SET PropertyAddress = ISNULL(a.PropertyAddress, b.PropertyAddress)
+FROM nashvillehousingdata a
+JOIN nashvillehousingdata b
+ON a.ParcelID = b.ParcelID
+AND a.UniqueID <> b.UniqueID
+WHERE a.PropertyAddress IS NULL
+
+
+
+
+ 
+-	- Breaking out address into individual columns (Address, city, state)
+
+SELECT PropertyAddress
+FROM nashvillehousingdata
+
+SELECT
+SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1)  AS Address
+, SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress)  + 1, LEN(PropertyAddress))  AS Address
+          FROM nashvillehousingdata
+
+ALTER TABLE nashvillehousingdata
+ADD PropertySplitAddress Nvarchar(255);
+
+UPDATE nashvillehousingdata
+Add   PropertySplitAddress = SUBSTRING(PropertyAddress, 1, CHARINDEX(',', PropertyAddress) -1)  
+
+ALTER TABLE nashvillehousingdata
+ADD PropertySplitCityNvarchar(255);
+
+UPDATE nashvillehousingdata
+Add   PropertySplitCity = SUBSTRING(PropertyAddress, CHARINDEX(',', PropertyAddress)  + 1, LEN(PropertyAddress))  
+
+SELECT * FROM nashvillehousingdata; 
+
+SELECT OwnerAddress
+FROM nashvillehousingdata
+
+SELECT 
+PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 3)
+, PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 2)
+, PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 1)
+FROM nashvillehousingdata
+
+ALTER TABLE nashvillehousingdata
+ADD OwnerSplitAddress Nvarchar(255);
+
+UPDATE nashvillehousingdata
+Add   OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 3)
+
+ALTER TABLE nashvillehousingdata
+ADD OwnerSplitAddress Nvarchar(255);
+
+UPDATE nashvillehousingdata
+Add   OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 2)
+
+ALTER TABLE nashvillehousingdata
+ADD OwnerSplitAddress Nvarchar(255);
+
+UPDATE nashvillehousingdata
+Add   OwnerSplitAddress = PARSENAME(REPLACE(OwnerAddress, ‘ , ’   ,  ‘ , ’ ) , 1)
+
+
+SELECT * FROM nashvillehousingdata; 
+
+
+-	-  Chage Y and N to Yes and No in “Sold as Vacant” field
+
+Select	 Distinct(SoldAsVacant), count(SoldAsVacant)
+From nashvillehousingdata
+Group by SoldAsVacant
+Order by 2;
+
+Select SoldAsVacant
+, CASE when SolidAsVacant = ‘Y’ Then ‘Yes’
+	When SolidAsVacant = ‘N’ Then ‘No’
+	ELSE SolidAsVacant
+	END
+From nashvillehousingdata
+
+Update nashvillehousingdata
+SET SolidAsVacant = CASE when SolidAsVacant = ‘Y’ Then ‘Yes’
+When SolidAsVacant = ‘N’ Then ‘No’
+	ELSE SolidAsVacant
+	END
+
+
+
+-	- Remove Duplicates
+
+WITH RowNumCTE AS(
+SELECT *,
+	ROW_NUMBER() OVER (
+	PARTITION BY ParcelID,
+			PropertyAddress,
+			SalePrice,
+			SaleDate,
+			LegalReference
+			ORDER BY
+				UniqueID
+				) row_num
+FROM nashvillehousingdata
+)
+
+
+
+SELECT *
+FROM RowNumCTE
+Where row_num > 1
+Order by PropertyAddress
+
+
+SELECT * FROM nashvillehousingdata; 
+
+
+
+-	- Delete unused columns
+
+SELECT * FROM nashvillehousingdata; 
+
+
+ALTER TABLE nashvillehousingdata
+DROP COLUMN OwnerAddress, TaxDistrict, PropertyAddress
+
+ALTER TABLE nashvillehousingdata
+DROP COLUMN SaleDate
+
+
